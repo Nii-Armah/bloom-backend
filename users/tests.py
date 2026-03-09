@@ -1,6 +1,6 @@
 from database import get_session, init_db
-from .factories import ClientFactory
-from .models import Client
+from .factories import ClientFactory, ProfessionalFactory
+from .models import Client, Professional
 from .utils import verify_password
 
 import datetime
@@ -31,6 +31,11 @@ def db_session():
 @pytest.fixture(scope='session')
 def client_data():
     return factory.build(dict, FACTORY_CLASS=ClientFactory)
+
+
+@pytest.fixture(scope='session')
+def professional_data():
+    return factory.build(dict, FACTORY_CLASS=ProfessionalFactory)
 
 
 class TestClientModel:
@@ -82,3 +87,57 @@ class TestClientModel:
 
         exception_message = str(exception.value).split('\n')[0]
         assert exception_message.endswith(f'UNIQUE constraint failed: clients.email')
+
+
+class TestProfessionalModel:
+    def test_create_a_professional(self, professional_data, db_session) -> None:
+        before = datetime.datetime.now()
+        professional = Professional(**professional_data)
+        db_session.add(professional)
+        db_session.commit()
+
+        assert isinstance(professional.id, UUID)
+        assert professional.full_name == professional_data.get('full_name')
+        assert professional.email == professional_data.get('email')
+        assert professional.bio == ''
+        assert not professional.is_verified
+        assert professional.specialty == professional_data.get('specialty')
+        assert verify_password(professional.password, professional_data.get('password'))
+        assert before <= professional.created_at <= datetime.datetime.now()
+        assert before <= professional.updated_at <= datetime.datetime.now()
+
+    def test_required_professional_fields(self, db_session, professional_data) -> None:
+        for field in professional_data:
+            data = professional_data.copy()
+            data.pop(field)
+            professional = Professional(**data)
+            db_session.add(professional)
+
+            with pytest.raises(IntegrityError) as exception:
+                db_session.commit()
+            db_session.rollback()
+
+            exception_message = str(exception.value).split('\n')[0]
+            assert exception_message.endswith(f'NOT NULL constraint failed: professionals.{field}')
+
+    def test_password_of_professional_is_hashed(self, db_session, professional_data) -> None:
+        professional = Professional(**professional_data)
+        db_session.add(professional)
+        db_session.commit()
+
+        assert professional.password != professional_data.get('password')
+
+    def test_email_of_professional_is_unique(self, db_session, professional_data) -> None:
+        professional = Professional(**professional_data)
+        db_session.add(professional)
+        db_session.commit()
+
+        # Attempt to create another professional with the same email address
+        professional = Professional(**professional_data)
+        db_session.add(professional)
+
+        with pytest.raises(IntegrityError) as exception:
+            db_session.commit()
+
+        exception_message = str(exception.value).split('\n')[0]
+        assert exception_message.endswith(f'UNIQUE constraint failed: professionals.email')
