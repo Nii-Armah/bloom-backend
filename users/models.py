@@ -13,7 +13,7 @@ class Client(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     full_name: Mapped[str] = mapped_column(max_length=200)
     email: Mapped[str] = mapped_column(max_length=100, unique=True, index=True)
-    contact_number: Mapped[str] = mapped_column(max_length=20, nullable=True, default='')
+    contact_number: Mapped[str] = mapped_column(max_length=20, default='')
     password: Mapped[str] = mapped_column(max_length=125)
     created_at: Mapped[datetime.datetime] = mapped_column(default=lambda: datetime.datetime.now(datetime.UTC))
 
