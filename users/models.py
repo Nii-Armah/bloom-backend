@@ -6,7 +6,7 @@ import enum
 from uuid import UUID, uuid4
 
 from sqlalchemy import TEXT
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class Client(Base):
@@ -41,6 +41,11 @@ class Professional(Base):
         LASH_SERVICES = 'lash_services'
         NAIL_SERVICES = 'nail_services'
 
+    def __init__(self, **kwargs):
+        if kwargs.get('password'):
+            kwargs['password'] = hash_password(kwargs.get('password'))
+        super().__init__(**kwargs)
+
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     full_name: Mapped[str] = mapped_column(max_length=200)
     email: Mapped[str] = mapped_column(max_length=100, unique=True, index=True)
@@ -49,13 +54,12 @@ class Professional(Base):
     specialty: Mapped[Specialty] = mapped_column()
     password: Mapped[str] = mapped_column(max_length=125)
     created_at: Mapped[datetime.datetime] = mapped_column(default=lambda: datetime.datetime.now(datetime.UTC))
+    services: Mapped[list['Service']] = relationship('Service', back_populates='professional')
 
     updated_at: Mapped[datetime.datetime] = mapped_column(
         default=lambda: datetime.datetime.now(datetime.UTC),
         onupdate=lambda: datetime.datetime.now(datetime.UTC),
     )
 
-    def __init__(self, **kwargs):
-        if kwargs.get('password'):
-            kwargs['password'] = hash_password(kwargs.get('password'))
-        super().__init__(**kwargs)
+
+from services.models import Service

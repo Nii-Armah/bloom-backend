@@ -103,6 +103,7 @@ class TestProfessionalModel:
         assert not professional.is_verified
         assert professional.specialty == professional_data.get('specialty')
         assert verify_password(professional.password, professional_data.get('password'))
+        assert professional.services == []
         assert before <= professional.created_at <= datetime.datetime.now()
         assert before <= professional.updated_at <= datetime.datetime.now()
 
