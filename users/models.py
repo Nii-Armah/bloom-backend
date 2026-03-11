@@ -6,7 +6,7 @@ import enum
 from uuid import UUID, uuid4
 
 from sqlalchemy import TEXT
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class Client(Base):
@@ -54,12 +54,8 @@ class Professional(Base):
     specialty: Mapped[Specialty] = mapped_column()
     password: Mapped[str] = mapped_column(max_length=125)
     created_at: Mapped[datetime.datetime] = mapped_column(default=lambda: datetime.datetime.now(datetime.UTC))
-    services: Mapped[list['Service']] = relationship('Service', back_populates='professional')
 
     updated_at: Mapped[datetime.datetime] = mapped_column(
         default=lambda: datetime.datetime.now(datetime.UTC),
         onupdate=lambda: datetime.datetime.now(datetime.UTC),
     )
-
-
-from services.models import Service

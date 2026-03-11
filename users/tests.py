@@ -1,7 +1,9 @@
-from database import get_session, init_db
 from .factories import ClientFactory, ProfessionalFactory
 from .models import Client, Professional
 from .utils import verify_password
+from database import init_db
+from schedules.models import Schedule
+from services.models import Service
 
 import datetime
 from uuid import UUID
@@ -103,7 +105,8 @@ class TestProfessionalModel:
         assert not professional.is_verified
         assert professional.specialty == professional_data.get('specialty')
         assert verify_password(professional.password, professional_data.get('password'))
-        assert professional.services == []
+        assert db_session.query(Service).filter_by(professional_id=professional.id).all() == []
+        assert db_session.query(Schedule).filter_by(professional_id=professional.id).all() == []
         assert before <= professional.created_at <= datetime.datetime.now()
         assert before <= professional.updated_at <= datetime.datetime.now()
 
