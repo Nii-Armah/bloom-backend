@@ -54,22 +54,17 @@ class TestServiceModel:
         for field in service_data:
             data = factory.build(dict, FACTORY_CLASS=ServiceFactory)
             data.pop(field)
+            service = Service(**data)
+            db_session.add(service)
 
-            if field == 'professional':
-                with pytest.raises(ValueError) as exception:
-                    Service(**data)
-                assert str(exception.value) == 'Service must have a professional.'
+            with pytest.raises(IntegrityError) as exception:
+                db_session.commit()
 
-            else:
-                service = Service(**data)
-                db_session.add(service)
-
-                with pytest.raises(IntegrityError) as exception:
-                    db_session.commit()
-
-                db_session.rollback()
-                exception_message = str(exception.value).split('\n')[0]
-                assert exception_message.endswith(f'NOT NULL constraint failed: services.{field}')
+            db_session.rollback()
+            exception_message = str(exception.value).split('\n')[0]
+            assert exception_message.endswith(
+                f'NOT NULL constraint failed: services.{'professional_id' if field == 'professional' else field}'
+            )
 
     def test_service_name_is_unique_for_a_given_professional(self, db_session, service_data) -> None:
         service = Service(**service_data)
