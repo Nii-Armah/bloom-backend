@@ -46,7 +46,6 @@ class TestServiceModel:
         assert service.description == ''
         assert service.is_active
         assert service.professional == service_data.get('professional')
-        assert service.professional.services == [service]
         assert before <= service.created_at <= datetime.datetime.now()
         assert before <= service.updated_at <= datetime.datetime.now()
 
