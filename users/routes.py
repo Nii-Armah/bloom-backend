@@ -16,8 +16,9 @@ async def validate_client(request: Request, db: Session = Depends(get_session)):
     return ClientSchema.model_validate(data, context={'db_session': db})
 
 
-@router.post('/', response_model=AuthResponse)
+@router.post('/', response_model=AuthResponse, tags=['Client Management'])
 async def create_client(schema: ClientSchema = Depends(validate_client),  db: Session = Depends(get_session)):
+    """Create a new client."""
     try:
         client = ClientService.create(schema, db)
         tokens = generate_auth_tokens(client.id)
