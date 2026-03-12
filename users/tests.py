@@ -1,5 +1,6 @@
 from .factories import ClientFactory, ProfessionalFactory
 from .models import Client, Professional
+from .schemas import ClientSchema
 from .utils import verify_password
 from database import init_db
 from schedules.models import Schedule
@@ -9,6 +10,7 @@ import datetime
 from uuid import UUID
 
 import factory
+from pydantic import ValidationError
 import pytest
 from sqlalchemy.exc import IntegrityError
 
@@ -30,7 +32,7 @@ def db_session():
     engine.dispose()
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='function')
 def client_data():
     return factory.build(dict, FACTORY_CLASS=ClientFactory)
 
@@ -145,3 +147,80 @@ class TestProfessionalModel:
 
         exception_message = str(exception.value).split('\n')[0]
         assert exception_message.endswith(f'UNIQUE constraint failed: professionals.email')
+
+
+class TestClientSchema:
+    def test_valid_client_creation_data(self, client_data, db_session) -> None:
+        client_data.update({'password2': client_data.get('password')})
+        schema = ClientSchema.model_validate(client_data, context={'db_session': db_session})
+        validated_data = schema.model_dump()
+
+        assert validated_data.get('full_name') == client_data.get('full_name')
+        assert validated_data.get('email') == client_data.get('email')
+        assert validated_data.get('contact_number') == ''
+        assert validated_data.get('password') == client_data.get('password')
+        assert 'password2' not in validated_data
+
+    def test_required_client_creation_fields(self, client_data, db_session) -> None:
+        client_data.update({'password2': 'Different1234$'})
+
+        for field in client_data:
+            data = client_data.copy()
+            data.pop(field)
+
+            with pytest.raises(ValidationError) as exception:
+                ClientSchema.model_validate(data, context={'db_session': db_session})
+
+            errors = exception.value.errors()
+            assert len(errors) == 1
+            assert errors[0].get('loc')[0] == field
+            assert errors[0].get('msg') == 'Field required'
+
+    def test_client_creation_data_with_invalid_email(self, client_data, db_session) -> None:
+        client_data.update({
+            'password2': 'Different1234$',
+            'email': 'invalid_email'
+        })
+
+        with pytest.raises(ValidationError) as exception:
+            ClientSchema.model_validate(client_data, context={'db_session': db_session})
+
+        errors = exception.value.errors()
+        assert len(errors) == 1
+        assert errors[0].get('loc')[0] == 'email'
+        assert errors[0].get('msg').endswith('An email address must have an @-sign.')
+
+    def test_client_creation_data_with_invalid_password(self, client_data, db_session) -> None:
+        client_data.update({'password': '1234', 'password2': '1234'})
+        with pytest.raises(ValidationError) as exception:
+            ClientSchema.model_validate(client_data, context={'db_session': db_session})
+
+        errors = exception.value.errors()
+        assert len(errors) == 1
+        assert errors[0].get('loc')[0] == 'password'
+        assert errors[0].get('msg').endswith('Password should have a minimum of 8 characters')
+
+    def test_client_creation_data_with_unmatching_passwords(self, client_data, db_session) -> None:
+        client_data.update({'password2': 'Different1234$'})
+        assert client_data.get('password') != client_data.get('password2')
+
+        with pytest.raises(ValidationError) as exception:
+            ClientSchema.model_validate(client_data, context={'db_session': db_session})
+
+        errors = exception.value.errors()
+        assert len(errors) == 1
+        assert errors[0].get('msg').endswith('Passwords do not match')
+
+    def test_client_creation_data_with_existing_email(self, client_data, db_session) -> None:
+        client = Client(**client_data)
+        db_session.add(client)
+        db_session.commit()
+
+        client_data.update({'password2': client_data.get('password')})
+        with pytest.raises(ValidationError) as exception:
+            ClientSchema.model_validate(client_data, context={'db_session': db_session})
+
+        errors = exception.value.errors()
+        assert len(errors) == 1
+        assert errors[0].get('loc')[0] == 'email'
+        assert errors[0].get('msg').endswith('Email already exists')
