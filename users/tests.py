@@ -150,7 +150,7 @@ class TestProfessionalModel:
 
 
 class TestClientSchema:
-    def test_valid_client_creation_data(self, client_data, db_session) -> None:
+    def test_valid_client_data(self, client_data, db_session) -> None:
         client_data.update({'password2': client_data.get('password')})
         schema = ClientSchema.model_validate(client_data, context={'db_session': db_session})
         validated_data = schema.model_dump()
@@ -161,7 +161,7 @@ class TestClientSchema:
         assert validated_data.get('password') == client_data.get('password')
         assert 'password2' not in validated_data
 
-    def test_required_client_creation_fields(self, client_data, db_session) -> None:
+    def test_required_client_fields(self, client_data, db_session) -> None:
         client_data.update({'password2': 'Different1234$'})
 
         for field in client_data:
@@ -176,7 +176,7 @@ class TestClientSchema:
             assert errors[0].get('loc')[0] == field
             assert errors[0].get('msg') == 'Field required'
 
-    def test_client_creation_data_with_invalid_email(self, client_data, db_session) -> None:
+    def test_client_data_with_invalid_email(self, client_data, db_session) -> None:
         client_data.update({
             'password2': 'Different1234$',
             'email': 'invalid_email'
@@ -190,7 +190,7 @@ class TestClientSchema:
         assert errors[0].get('loc')[0] == 'email'
         assert errors[0].get('msg').endswith('An email address must have an @-sign.')
 
-    def test_client_creation_data_with_invalid_password(self, client_data, db_session) -> None:
+    def test_client_data_with_invalid_password(self, client_data, db_session) -> None:
         client_data.update({'password': '1234', 'password2': '1234'})
         with pytest.raises(ValidationError) as exception:
             ClientSchema.model_validate(client_data, context={'db_session': db_session})
@@ -200,7 +200,7 @@ class TestClientSchema:
         assert errors[0].get('loc')[0] == 'password'
         assert errors[0].get('msg').endswith('Password should have a minimum of 8 characters')
 
-    def test_client_creation_data_with_unmatching_passwords(self, client_data, db_session) -> None:
+    def test_client_data_with_unmatching_passwords(self, client_data, db_session) -> None:
         client_data.update({'password2': 'Different1234$'})
         assert client_data.get('password') != client_data.get('password2')
 
@@ -211,7 +211,7 @@ class TestClientSchema:
         assert len(errors) == 1
         assert errors[0].get('msg').endswith('Passwords do not match')
 
-    def test_client_creation_data_with_existing_email(self, client_data, db_session) -> None:
+    def test_client_data_with_existing_email(self, client_data, db_session) -> None:
         client = Client(**client_data)
         db_session.add(client)
         db_session.commit()
