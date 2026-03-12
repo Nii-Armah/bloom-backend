@@ -34,7 +34,7 @@ class Token(BaseModel):
     token_type: str = 'bearer'
 
 
-class AuthResponse(BaseModel):
+class ClientAuthResponse(BaseModel):
     user: ClientOut
     tokens: Token
 

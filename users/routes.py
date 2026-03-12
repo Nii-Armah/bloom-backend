@@ -22,7 +22,12 @@ async def validate_professional(request: Request, db: Session = Depends(get_sess
     return ProfessionalSchema.model_validate(data, context={'db_session': db})
 
 
-@client_router.post('/', response_model=ClientAuthResponse, tags=['Client Management'])
+@client_router.post(
+    '/',
+    response_model=ClientAuthResponse,
+    tags=['Client Management'],
+    status_code=status.HTTP_201_CREATED
+)
 async def create_client(schema: ClientSchema = Depends(validate_client),  db: Session = Depends(get_session)):
     """Create a new client."""
     try:

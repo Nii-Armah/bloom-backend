@@ -342,7 +342,7 @@ class TestClientManagementEndpoints:
         assert clients_count  == 0
 
         response = client.post('/api/v1/clients/', json=client_data)
-        assert response.status_code == 200
+        assert response.status_code == status.HTTP_201_CREATED
 
         clients_count = db_session.execute(select(func.count(Client.id))).scalar()
         assert clients_count == 1
@@ -390,6 +390,11 @@ class TestClientManagementEndpoints:
         client_data.update({'password2': client_data.get('password')})
         response = client.post('/api/v1/clients/', json=client_data)
         assert_validation_error(response, field_name='email')
+
+    def test_client_password_strength(self, client, client_data, assert_validation_error) -> None:
+        client_data.update({'password': '1234', 'password2': '1234'})
+        response = client.post('/api/v1/clients/', json=client_data)
+        assert_validation_error(response, field_name='password')
 
     def test_client_passwords_should_be_matching(self, client, client_data, assert_validation_error) -> None:
         client_data.update({'password2': 'Different1234$'})
