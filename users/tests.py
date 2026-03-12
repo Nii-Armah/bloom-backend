@@ -1,8 +1,11 @@
+from constants import ErrorCode
 from .factories import ClientFactory, ProfessionalFactory
 from .models import Client, Professional
 from .schemas import ClientSchema, ProfessionalSchema
-from .utils import verify_password
-from database import init_db
+from .services import ClientService
+from .utils import decode_token, verify_password
+from app import create_app
+from database import Base, get_session, init_db
 from schedules.models import Schedule
 from services.models import Service
 
@@ -10,26 +13,42 @@ import datetime
 from uuid import UUID
 
 import factory
+from fastapi.testclient import TestClient
 from pydantic import ValidationError
 import pytest
+from sqlalchemy import func, select, exists
 from sqlalchemy.exc import IntegrityError
 
 
 @pytest.fixture(scope='function')
-def db_session():
+def app():
+    return create_app()
+
+
+@pytest.fixture(scope='function')
+def db_session(app):
     engine, session_factory = init_db(test=True)
-    session = session_factory()
+    Base.metadata.create_all(bind=engine)
 
-    # Override FastAPI dependency
-    # def override_get_session():
-    #     return session
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = session_factory(bind=connection)
 
-    # app.dependency_overrides[get_session] = override_get_session
+    def override_get_session():
+        yield session
 
+    app.dependency_overrides[get_session] = override_get_session
     yield session
 
     session.close()
+    transaction.rollback()
+    connection.close()
     engine.dispose()
+
+
+@pytest.fixture(scope='function')
+def client(app, db_session):
+    return TestClient(app, raise_server_exceptions=False)
 
 
 @pytest.fixture(scope='function')
@@ -314,3 +333,76 @@ class TestProfessionalSchema:
         assert len(errors) == 1
         assert errors[0].get('loc')[0] == 'specialty'
         assert errors[0].get('msg') == "Input should be 'hair_styling', 'hair_coloring', 'makeup_artistry', 'skincare', 'lash_services' or 'nail_services'"
+
+
+class TestUserManagementEndpoints:
+    @staticmethod
+    def assert_validation_error(response, field_name=None):
+        assert response.status_code == 422
+        data = response.json()
+        assert data['success'] is False
+        assert data['error']['code'] == ErrorCode.VALIDATION_ERROR
+        if field_name:
+            assert field_name in data['error']['details']
+
+    def test_create_a_client(self, client, client_data, db_session) -> None:
+        client_data.update({'password2': client_data.get('password')})
+        clients_count = db_session.execute(select(func.count(Client.id))).scalar()
+        assert clients_count  == 0
+
+        response = client.post('/api/v1/clients/', json=client_data)
+        assert response.status_code == 200
+
+        clients_count = db_session.execute(select(func.count(Client.id))).scalar()
+        assert clients_count == 1
+        user_data = response.json().get('user')
+
+        # Client model tests
+        client_id = UUID(user_data.get('id'))
+        client = ClientService.get_by_id(db_session, client_id)
+        assert client.full_name == client_data.get('full_name')
+        assert client.email == client_data.get('email')
+        assert client.contact_number == ''
+        assert verify_password(client.password, client_data.get('password'))
+
+        # Response tests
+        assert user_data.get('full_name') == client_data.get('full_name')
+        assert user_data.get('email') == client_data.get('email')
+        assert user_data.get('contact_number') == client_data.get('contact_number', '')
+
+        tokens = response.json().get('tokens')
+        access_token_payload = decode_token(tokens.get('access_token'))
+        assert access_token_payload
+        assert access_token_payload.get('sub') == user_data.get('id')
+
+        refresh_token_payload = decode_token(tokens.get('refresh_token'))
+        assert refresh_token_payload
+        assert refresh_token_payload.get('sub') == user_data.get('id')
+
+    def test_client_required_fields(self, client, client_data) -> None:
+        client_data.update({'password2': client_data.get('password')})
+
+        for field in client_data:
+            data = client_data.copy()
+            data.pop(field)
+            response = client.post('/api/v1/clients/', json=data)
+            self.assert_validation_error(response, field_name=field)
+
+    def test_client_email_should_be_unique(self, client, client_data, db_session) -> None:
+        user = Client(**client_data)
+        db_session.add(user)
+        db_session.commit()
+
+        # client with email exists
+        assert db_session.query(exists().where(Client.email == client_data.get('email'))).scalar()
+
+        client_data.update({'password2': client_data.get('password')})
+        response = client.post('/api/v1/clients/', json=client_data)
+        self.assert_validation_error(response, field_name='email')
+
+    def test_client_passwords_should_be_matching(self, client, client_data) -> None:
+        client_data.update({'password2': 'Different1234$'})
+        assert client_data.get('password') != client_data.get('password2')
+
+        response = client.post('/api/v1/clients/', json=client_data)
+        self.assert_validation_error(response)

@@ -1,10 +1,31 @@
 from .models import Client, Professional
-from pydantic import BaseModel, EmailStr, ValidationInfo, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, ValidationInfo, field_validator, model_validator
 
 from typing import Self
+from uuid import UUID
 
 from sqlalchemy import exists
 from sqlalchemy.orm import Session
+
+
+class ClientOut(BaseModel):
+    id: UUID
+    full_name: str
+    email: EmailStr
+    contact_number: str = ''
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class Token(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = 'bearer'
+
+
+class AuthResponse(BaseModel):
+    user: ClientOut
+    tokens: Token
 
 
 class ClientSchema(BaseModel):
