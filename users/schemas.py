@@ -16,6 +16,17 @@ class ClientOut(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class ProfessionalOut(BaseModel):
+    id: UUID
+    full_name: str
+    email: EmailStr
+    bio: str = ''
+    is_verified: bool = False
+    specialty: Professional.Specialty
+
+
+    model_config = ConfigDict(from_attributes=True)
+
 
 class Token(BaseModel):
     access_token: str
@@ -25,6 +36,11 @@ class Token(BaseModel):
 
 class AuthResponse(BaseModel):
     user: ClientOut
+    tokens: Token
+
+
+class ProfessionalAuthResponse(BaseModel):
+    user: ProfessionalOut
     tokens: Token
 
 

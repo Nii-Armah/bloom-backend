@@ -1,4 +1,4 @@
-from users.routes import router as user_router
+from users.routes import client_router, professional_router
 
 from constants import ErrorCode
 from fastapi import FastAPI, Request, status
@@ -43,7 +43,9 @@ def create_app():
             }
         )
 
-    app.include_router(user_router, prefix='/api/v1')
+    app.include_router(client_router, prefix='/api/v1')
+    app.include_router(professional_router, prefix='/api/v1')
+
     return app
 
 

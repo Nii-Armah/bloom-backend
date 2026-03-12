@@ -1,8 +1,7 @@
-from constants import ErrorCode
 from .factories import ClientFactory, ProfessionalFactory
 from .models import Client, Professional
 from .schemas import ClientSchema, ProfessionalSchema
-from .services import ClientService
+from .services import ClientService, ProfessionalService
 from .utils import decode_token, verify_password
 from app import create_app
 from database import Base, get_session, init_db
@@ -13,6 +12,7 @@ import datetime
 from uuid import UUID
 
 import factory
+from fastapi import status
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 import pytest
@@ -398,3 +398,70 @@ class TestClientManagementEndpoints:
         response = client.post('/api/v1/clients/', json=client_data)
         assert_validation_error(response)
 
+
+class TestProfessionalManagementEndpoints:
+    def test_create_a_professional(self, db_session, client, professional_data) -> None:
+        professional_data.update({'password2': professional_data.get('password')})
+
+        response = client.post('/api/v1/professionals/', json=professional_data)
+        assert response.status_code == status.HTTP_201_CREATED
+
+        # Test created professional
+        user_data = response.json().get('user')
+        professional_id = UUID(user_data.get('id'))
+        professional = ProfessionalService.get_by_id(db_session, professional_id)
+        assert professional.full_name == professional_data.get('full_name')
+        assert professional.email == professional_data.get('email')
+        assert professional.bio == ''
+        assert not professional.is_verified
+        assert verify_password(professional.password, professional_data.get('password'))
+
+        # Test response
+        assert user_data.get('full_name') == professional_data.get('full_name')
+        assert user_data.get('email') == professional_data.get('email')
+        assert user_data.get('bio') == ''
+        assert not user_data.get('is_verified')
+
+        tokens = response.json().get('tokens')
+        access_token_payload = decode_token(tokens.get('access_token'))
+        assert access_token_payload.get('sub') == user_data.get('id')
+
+        refresh_token_payload = decode_token(tokens.get('refresh_token'))
+        assert refresh_token_payload.get('sub') == user_data.get('id')
+
+    def test_professional_required_fields(self, client, professional_data, assert_validation_error) -> None:
+        professional_data.update({'password2': professional_data.get('password')})
+
+        for field in professional_data:
+            data = professional_data.copy()
+            data.pop(field)
+
+            response = client.post('/api/v1/professionals/', json=data)
+            assert_validation_error(response, field_name=field)
+
+
+    def test_professional_email_should_be_unique(self, client,  db_session, professional_data, assert_validation_error) -> None:
+        professional = Professional(**professional_data)
+        db_session.add(professional)
+        db_session.commit()
+
+        response = client.post('/api/v1/professionals/', json=professional_data)
+        assert_validation_error(response, field_name='email')
+
+    def test_professional_invalid_specialty(self, client, professional_data, assert_validation_error) -> None:
+        professional_data.update({'password2': professional_data.get('password'), 'specialty': 'invalid'})
+        response = client.post('/api/v1/professionals/', json=professional_data)
+        assert_validation_error(response, field_name='specialty')
+
+
+    def test_professional_password_strength(self, client, professional_data, assert_validation_error) -> None:
+        professional_data.update({'password': '1234', 'password2': '1234'})
+        response = client.post('/api/v1/professionals/', json=professional_data)
+        assert_validation_error(response, field_name='password')
+
+    def test_professional_password_should_be_matching(self, client, professional_data, assert_validation_error) -> None:
+        professional_data.update({'password2': 'Different1234$'})
+        assert professional_data.get('password') != professional_data.get('password2')
+
+        response = client.post('/api/v1/professionals/', json=professional_data)
+        assert_validation_error(response)
