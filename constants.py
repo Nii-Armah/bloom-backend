@@ -5,3 +5,4 @@ class ErrorCode(str, Enum):
     NOT_FOUND = 'NOT_FOUND'
     CONFLICT = 'CONFLICT'
     AUTH_FAILED = 'AUTH_FAILED'
+    HTTP_ERROR = 'HTTP_ERROR'

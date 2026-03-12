@@ -1,7 +1,7 @@
-from users.routes import client_router, professional_router
+from users.routes import auth_router, client_router, professional_router
 
 from constants import ErrorCode
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -43,6 +43,21 @@ def create_app():
             }
         )
 
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request: Request, exc: HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                'success': False,
+                'error': {
+                    'code': ErrorCode.HTTP_ERROR,
+                    'message': exc.detail,
+                    'details': {}
+                }
+            }
+        )
+
+    app.include_router(auth_router, prefix='/api/v1/auth')
     app.include_router(client_router, prefix='/api/v1')
     app.include_router(professional_router, prefix='/api/v1')
 

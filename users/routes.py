@@ -1,13 +1,23 @@
 from .services import ClientService, ProfessionalService
-from .utils import generate_auth_tokens
+from .utils import generate_auth_tokens, verify_password
 from database import get_session
-from users.schemas import ClientAuthResponse, ProfessionalAuthResponse, ClientSchema, ProfessionalSchema
+from users.models import Client
+from users.schemas import (
+    ClientAuthResponse,
+    ClientSchema,
+    ProfessionalAuthResponse,
+    ProfessionalSchema,
+    LoginSchema,
+)
+
+from typing import Union
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 
+auth_router = APIRouter()
 client_router = APIRouter(prefix='/clients')
 professional_router = APIRouter(prefix='/professionals')
 
@@ -61,3 +71,19 @@ def create_professional(schema: ProfessionalSchema = Depends(validate_profession
 
     except IntegrityError:
         raise HTTPException(status_code=409, detail='Email already exists')
+
+
+@auth_router.post('/login/', tags=['User Authentication'], status_code=status.HTTP_200_OK)
+def login_user(schema: LoginSchema, db: Session = Depends(get_session)):
+    user = ClientService.get_by_email(db, email=schema.email)
+    if user is None:
+        user = ProfessionalService.get_by_email(db, email=schema.email)
+
+    if user is None or not verify_password(user.password, schema.password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Invalid email or password')
+
+    tokens = generate_auth_tokens(user.id)
+    if isinstance(user, Client):
+        return ClientAuthResponse(user=user, tokens=tokens)
+
+    return ProfessionalAuthResponse(user=user, tokens=tokens)

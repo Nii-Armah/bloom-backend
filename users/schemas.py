@@ -115,3 +115,8 @@ class ProfessionalSchema(BaseModel):
     def cleanup(self) -> Self:
         del self.password2
         return self
+
+
+class LoginSchema(BaseModel):
+    email: EmailStr
+    password: str

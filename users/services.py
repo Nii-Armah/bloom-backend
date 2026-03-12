@@ -21,6 +21,10 @@ class ClientService:
     def get_by_id(db: Session, client_id: UUID) -> Client | None:
         return db.query(Client).filter(Client.id == client_id).first()
 
+    @staticmethod
+    def get_by_email(db: Session, email: str) -> Client | None:
+        return db.query(Client).filter(Client.email == email).first()
+
 
 class ProfessionalService:
     @staticmethod
@@ -36,3 +40,7 @@ class ProfessionalService:
     @staticmethod
     def get_by_id(db: Session, client_id: UUID) -> Professional | None:
         return db.query(Professional).filter(Professional.id == client_id).first()
+
+    @staticmethod
+    def get_by_email(db: Session, email: str) -> Professional | None:
+        return db.query(Professional).filter(Professional.email == email).first()

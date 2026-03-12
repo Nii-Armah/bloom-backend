@@ -61,6 +61,22 @@ def professional_data():
     return factory.build(dict, FACTORY_CLASS=ProfessionalFactory)
 
 
+@pytest.fixture(scope='function')
+def client_login_data(client_data):
+    return {
+        'email': client_data.get('email'),
+        'password': client_data.get('password')
+    }
+
+
+@pytest.fixture(scope='function')
+def professional_login_data(professional_data):
+    return {
+        'email': professional_data.get('email'),
+        'password': professional_data.get('password'),
+    }
+
+
 class TestClientModel:
     def test_create_a_client(self, client_data, db_session) -> None:
         before = datetime.datetime.now()
@@ -470,3 +486,62 @@ class TestProfessionalManagementEndpoints:
 
         response = client.post('/api/v1/professionals/', json=professional_data)
         assert_validation_error(response)
+
+
+class TestUserLoginAPIEndpoint:
+    def test_login_a_client(self, client, client_data, client_login_data, db_session) -> None:
+        user = Client(**client_data)
+        db_session.add(user)
+        db_session.commit()
+
+        response = client.post('/api/v1/auth/login/', json=client_login_data)
+        assert response.status_code == status.HTTP_200_OK
+
+        user_data = response.json().get('user')
+        assert user.id == UUID(user_data.get('id'))
+        assert user.email == user_data.get('email')
+        assert user.contact_number == ''
+
+        tokens = response.json().get('tokens')
+        access_token_payload = decode_token(tokens.get('access_token'))
+        assert access_token_payload.get('sub') == user_data.get('id')
+
+        refresh_token_payload = decode_token(tokens.get('refresh_token'))
+        assert refresh_token_payload.get('sub') == user_data.get('id')
+
+    def test_login_a_professional(self, client, db_session, professional_data, professional_login_data) -> None:
+        user = Professional(**professional_data)
+        db_session.add(user)
+        db_session.commit()
+
+        response = client.post('/api/v1/auth/login/', json=professional_login_data)
+        assert response.status_code == status.HTTP_200_OK
+
+        user_data = response.json().get('user')
+        assert user.id == UUID(user_data.get('id'))
+        assert user.email == user_data.get('email')
+        assert user.bio == ''
+
+        tokens = response.json().get('tokens')
+        access_token_payload = decode_token(tokens.get('access_token'))
+        assert access_token_payload.get('sub') == user_data.get('id')
+
+        refresh_token_payload = decode_token(tokens.get('refresh_token'))
+        assert refresh_token_payload.get('sub') == user_data.get('id')
+
+    def test_attempt_login_with_invalid_credentials(
+            self, client, db_session, client_data, client_login_data, assert_http_error
+    ) -> None:
+
+        user = Client(**client_data)
+        db_session.add(user)
+        db_session.commit()
+
+        # Invalid email address
+        data = client_login_data.copy()
+        data.update({'email': 'different.email@gmail.com'})
+        assert not db_session.query(Client).filter(Client.email == data.get('email')).first()
+        assert not db_session.query(Professional).filter(Client.email == data.get('email')).first()
+
+        response = client.post('/api/v1/auth/login/', json=data)
+        assert_http_error(response, status_code=status.HTTP_400_BAD_REQUEST, message='Invalid email or password')

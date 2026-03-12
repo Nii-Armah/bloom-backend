@@ -13,3 +13,16 @@ def assert_validation_error():
             assert field_name in data['error']['details']
 
     return _assert
+
+
+@pytest.fixture
+def assert_http_error():
+    def _assert(response, status_code, message=None):
+        assert response.status_code == status_code
+        data = response.json()
+        assert data['success'] is False
+        assert data['error']['code'] == ErrorCode.HTTP_ERROR
+        if message:
+            assert message in data['error']['message']
+
+    return _assert
