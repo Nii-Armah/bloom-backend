@@ -335,16 +335,7 @@ class TestProfessionalSchema:
         assert errors[0].get('msg') == "Input should be 'hair_styling', 'hair_coloring', 'makeup_artistry', 'skincare', 'lash_services' or 'nail_services'"
 
 
-class TestUserManagementEndpoints:
-    @staticmethod
-    def assert_validation_error(response, field_name=None):
-        assert response.status_code == 422
-        data = response.json()
-        assert data['success'] is False
-        assert data['error']['code'] == ErrorCode.VALIDATION_ERROR
-        if field_name:
-            assert field_name in data['error']['details']
-
+class TestClientManagementEndpoints:
     def test_create_a_client(self, client, client_data, db_session) -> None:
         client_data.update({'password2': client_data.get('password')})
         clients_count = db_session.execute(select(func.count(Client.id))).scalar()
@@ -379,16 +370,16 @@ class TestUserManagementEndpoints:
         assert refresh_token_payload
         assert refresh_token_payload.get('sub') == user_data.get('id')
 
-    def test_client_required_fields(self, client, client_data) -> None:
+    def test_client_required_fields(self, client, client_data, assert_validation_error) -> None:
         client_data.update({'password2': client_data.get('password')})
 
         for field in client_data:
             data = client_data.copy()
             data.pop(field)
             response = client.post('/api/v1/clients/', json=data)
-            self.assert_validation_error(response, field_name=field)
+            assert_validation_error(response, field_name=field)
 
-    def test_client_email_should_be_unique(self, client, client_data, db_session) -> None:
+    def test_client_email_should_be_unique(self, client, client_data, db_session, assert_validation_error) -> None:
         user = Client(**client_data)
         db_session.add(user)
         db_session.commit()
@@ -398,11 +389,12 @@ class TestUserManagementEndpoints:
 
         client_data.update({'password2': client_data.get('password')})
         response = client.post('/api/v1/clients/', json=client_data)
-        self.assert_validation_error(response, field_name='email')
+        assert_validation_error(response, field_name='email')
 
-    def test_client_passwords_should_be_matching(self, client, client_data) -> None:
+    def test_client_passwords_should_be_matching(self, client, client_data, assert_validation_error) -> None:
         client_data.update({'password2': 'Different1234$'})
         assert client_data.get('password') != client_data.get('password2')
 
         response = client.post('/api/v1/clients/', json=client_data)
-        self.assert_validation_error(response)
+        assert_validation_error(response)
+
