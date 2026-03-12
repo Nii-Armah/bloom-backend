@@ -1,11 +1,14 @@
 from .factories import ServiceFactory
 from .models import Service
+from .schemas import ServiceSchema
 from database import init_db
 
 import datetime
+import decimal
 from uuid import UUID
 
 import factory
+from pydantic import ValidationError
 import pytest
 from sqlalchemy.exc import IntegrityError
 
@@ -79,3 +82,71 @@ class TestServiceModel:
 
         exception_message = str(exception.value).split('\n')[0]
         assert exception_message.endswith('UNIQUE constraint failed: services.professional_id, services.name')
+
+
+class TestServiceSchema:
+    def test_valid_service_data(self, db_session, service_data) -> None:
+        professional = service_data.pop('professional')
+        schema = ServiceSchema.model_validate(
+            service_data,
+            context={'db_session': db_session, 'professional': professional}
+        )
+        validated_data = schema.model_dump()
+
+        assert validated_data.get('name') == service_data.get('name')
+        assert validated_data.get('description') == ''
+        assert validated_data.get('price') == service_data.get('price')
+        assert validated_data.get('duration') == service_data.get('duration')
+
+    def test_required_service_fields(self, db_session, service_data) -> None:
+        professional = service_data.pop('professional')
+
+        for field in service_data:
+            data = service_data.copy()
+            data.pop(field)
+
+            with pytest.raises(ValidationError) as exception:
+                ServiceSchema.model_validate(data, context={'db_session': db_session, 'professional': professional})
+
+            errors = exception.value.errors()
+            assert len(errors) == 1
+            assert errors[0].get('loc')[0] == field
+            assert errors[0].get('msg') == 'Field required'
+
+    def test_service_name_should_be_unique_for_a_given_professional(self, db_session, service_data) -> None:
+        service = Service(**service_data)
+        db_session.add(service)
+        db_session.commit()
+
+        professional = service_data.pop('professional')
+        with pytest.raises(ValidationError) as exception:
+            ServiceSchema.model_validate(service_data, context={'db_session': db_session, 'professional': professional})
+
+        errors = exception.value.errors()
+        assert len(errors) == 1
+        assert errors[0].get('loc')[0] == 'name'
+        assert errors[0].get('msg').endswith('Professional has a service by the given name')
+
+    def test_service_duration_should_be_greater_than_zero(self, db_session, service_data) -> None:
+        service_data.update({'duration': 0})
+        professional = service_data.pop('professional')
+
+        with pytest.raises(ValidationError) as exception:
+            ServiceSchema.model_validate(service_data, context={'db_session': db_session, 'professional': professional})
+
+        errors = exception.value.errors()
+        assert len(errors) == 1
+        assert errors[0].get('loc')[0] == 'duration'
+        assert errors[0].get('msg') == 'Input should be greater than 0'
+
+    def test_service_price_should_be_greater_than_zero(self, db_session, service_data) -> None:
+        service_data.update({'price': decimal.Decimal('0.00')})
+        professional = service_data.pop('professional')
+
+        with pytest.raises(ValidationError) as exception:
+            ServiceSchema.model_validate(service_data, context={'db_session': db_session, 'professional': professional})
+
+        errors = exception.value.errors()
+        assert len(errors) == 1
+        assert errors[0].get('loc')[0] == 'price'
+        assert errors[0].get('msg') == 'Input should be greater than 0'
