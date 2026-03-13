@@ -22,14 +22,34 @@ async def validate_service(
     return ServiceSchema.model_validate(data, context={'db_session': db, 'professional': professional})
 
 
-@service_router.post('/',  response_model=ServiceOut, tags=['Service Management'], status_code=status.HTTP_201_CREATED)
+@service_router.post(
+    '/',
+    response_model=ServiceOut,
+    tags=['Service Management'],
+    status_code=status.HTTP_201_CREATED
+)
 async def create_service(
         schema: ServiceSchema = Depends(validate_service),
         professional: Professional = Depends(get_current_professional),
         db: Session = Depends(get_session)
 ):
+    """Create a new service."""
     try:
         service = ServiceCore.create(schema, db, professional)
         return service
     except IntegrityError:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='Service already exists')
+
+
+@service_router.get(
+    '/',
+    response_model=list[ServiceOut],
+    tags=['Service Management'],
+    status_code=status.HTTP_200_OK
+)
+async def get_services(
+        professional: Professional = Depends(get_current_professional),
+        db: Session = Depends(get_session)
+):
+    """List all services of a given professional."""
+    return ServiceCore.get_services_of_professional(db, professional)

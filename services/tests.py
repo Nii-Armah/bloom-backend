@@ -185,7 +185,7 @@ class TestServiceSchema:
 
 
 class TestServiceManagementAPIEndpoints:
-    def test_endpoint_is_authenticated(self, client, service_data, assert_auth_error) -> None:
+    def test_service_creation_endpoint_is_authenticated(self, client, service_data, assert_auth_error) -> None:
         service_data.pop('professional')
         service_data.update({'price': str(service_data.get('price'))})
 
@@ -327,3 +327,27 @@ class TestServiceManagementAPIEndpoints:
             Service.professional_id == professional.id,
             Service.name == service_data.get('name')
         ).count() == 1
+
+    def test_retrieve_all_services_of_professional(self, client, service_data, db_session, professional_auth_header) -> None:
+        professional = professional_auth_header.get('professional')
+        service_data.update({'professional': professional})
+        service = Service(**service_data)
+        db_session.add(service)
+        db_session.commit()
+
+        assert db_session.query(Service).filter(Service.professional == professional).count() == 1
+
+        headers = professional_auth_header.get('header')
+        response = client.get('/api/v1/services/', headers=headers)
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+
+        created_service_data = response.json()[0]
+        assert created_service_data.get('name') == service_data.get('name')
+        assert created_service_data.get('description') == ''
+        assert created_service_data.get('price') == str(service_data.get('price'))
+        assert created_service_data.get('duration') == service_data.get('duration')
+
+    def test_services_retrieval_endpoint_is_authenticated(self, client, assert_auth_error) -> None:
+        response = client.get('/api/v1/services/')
+        assert_auth_error(response, status_code=401, message='Not authenticated')

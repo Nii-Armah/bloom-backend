@@ -23,3 +23,7 @@ class ServiceCore:
     @staticmethod
     def get_by_id(db: Session, service_id: UUID) -> Service | None:
         return db.query(Service).filter(Service.id == service_id).first()
+
+    @staticmethod
+    def get_services_of_professional(db: Session, professional: Professional) -> list[type[Service]]:
+        return db.query(Service).filter(Service.professional == professional).all()
