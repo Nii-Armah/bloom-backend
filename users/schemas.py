@@ -13,6 +13,7 @@ class ClientOut(BaseModel):
     full_name: str
     email: EmailStr
     contact_number: str = ''
+    role: str = 'client'
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -23,6 +24,7 @@ class ProfessionalOut(BaseModel):
     bio: str = ''
     is_verified: bool = False
     specialty: Professional.Specialty
+    role: str = 'admin'
 
 
     model_config = ConfigDict(from_attributes=True)

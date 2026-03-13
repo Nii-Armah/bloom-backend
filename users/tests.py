@@ -375,6 +375,7 @@ class TestClientManagementEndpoints:
         # Response tests
         assert user_data.get('full_name') == client_data.get('full_name')
         assert user_data.get('email') == client_data.get('email')
+        assert user_data.get('role') == 'client'
         assert user_data.get('contact_number') == client_data.get('contact_number', '')
 
         tokens = response.json().get('tokens')
@@ -441,6 +442,7 @@ class TestProfessionalManagementEndpoints:
         assert user_data.get('full_name') == professional_data.get('full_name')
         assert user_data.get('email') == professional_data.get('email')
         assert user_data.get('bio') == ''
+        assert user_data.get('role') == 'admin'
         assert not user_data.get('is_verified')
 
         tokens = response.json().get('tokens')
