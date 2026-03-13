@@ -35,7 +35,7 @@ async def validate_professional(request: Request, db: Session = Depends(get_sess
 @client_router.post(
     '/',
     response_model=ClientAuthResponse,
-    tags=['Client Management'],
+    tags=['User Management'],
     status_code=status.HTTP_201_CREATED
 )
 async def create_client(schema: ClientSchema = Depends(validate_client),  db: Session = Depends(get_session)):
@@ -55,7 +55,7 @@ async def create_client(schema: ClientSchema = Depends(validate_client),  db: Se
 @professional_router.post(
     '/',
     response_model=ProfessionalAuthResponse,
-    tags=['Professional Management'],
+    tags=['User Management'],
     status_code=status.HTTP_201_CREATED
 )
 def create_professional(schema: ProfessionalSchema = Depends(validate_professional), db: Session = Depends(get_session)):
@@ -73,7 +73,7 @@ def create_professional(schema: ProfessionalSchema = Depends(validate_profession
         raise HTTPException(status_code=409, detail='Email already exists')
 
 
-@auth_router.post('/login/', tags=['User Authentication'], status_code=status.HTTP_200_OK)
+@auth_router.post('/login/', tags=['User Management'], status_code=status.HTTP_200_OK)
 def login_user(schema: LoginSchema, db: Session = Depends(get_session)):
     user = ClientService.get_by_email(db, email=schema.email)
     if user is None:
