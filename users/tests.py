@@ -48,7 +48,7 @@ def db_session(app):
 
 @pytest.fixture(scope='function')
 def client(app, db_session):
-    return TestClient(app, raise_server_exceptions=False)
+    return TestClient(app)
 
 
 @pytest.fixture(scope='function')
