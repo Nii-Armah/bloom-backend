@@ -9,9 +9,21 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 
+from contextlib import asynccontextmanager
+from database import Base, engine
+
+
+@asynccontextmanager
+async def lifespan(app):
+    Base.metadata.create_all(bind=engine)
+    print("Tables created!")
+    yield
+
+    print("Shutting down...")
+
 
 def create_app():
-    app = FastAPI(title='Bloom API', version='1.0.0')
+    app = FastAPI(title='Bloom API', version='1.0.0', lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,
