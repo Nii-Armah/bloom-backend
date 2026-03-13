@@ -1,5 +1,6 @@
 from users.models import Client, Professional
 from users.schemas import ClientSchema, ProfessionalSchema
+from schedules.models import Schedule
 
 from uuid import UUID
 
@@ -44,3 +45,10 @@ class ProfessionalService:
     @staticmethod
     def get_by_email(db: Session, email: str) -> Professional | None:
         return db.query(Professional).filter(Professional.email == email).first()
+
+    @staticmethod
+    def get_schedule(db: Session, professional: Professional, day: Schedule.DayOfWeek) -> Schedule | None:
+        return db.query(Schedule).filter(
+            Schedule.professional == professional,
+            Schedule.day_of_week == day
+        ).first()

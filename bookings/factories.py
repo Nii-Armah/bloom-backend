@@ -14,6 +14,5 @@ class BookingFactory(factory.alchemy.SQLAlchemyModelFactory):
     client = factory.SubFactory(ClientFactory)
     professional = factory.SubFactory(ProfessionalFactory)
     service = factory.SubFactory(ServiceFactory)
-    date = datetime.date.today()
-    start_time = datetime.time(10, 0, 0)
-    end_time = datetime.time(12, 0, 0)
+    start = datetime.datetime.now()
+    end = datetime.datetime.now() + datetime.timedelta(minutes=45)

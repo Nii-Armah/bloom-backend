@@ -2,6 +2,8 @@ from services.models import Service
 from services.schemas import ServiceSchema
 from users.models import Professional
 
+from uuid import UUID
+
 from sqlalchemy.orm import Session
 
 
@@ -17,3 +19,7 @@ class ServiceCore:
         db.refresh(service)
 
         return service
+
+    @staticmethod
+    def get_by_id(db: Session, service_id: UUID) -> Service | None:
+        return db.query(Service).filter(Service.id == service_id).first()

@@ -36,5 +36,5 @@ class Booking(Base):
     )
 
     __table_args__ = (
-        CheckConstraint('start < end', name='start_time_should_precede_end_time'),
+        CheckConstraint('start < end', name='start_should_precede_end'),
     )
