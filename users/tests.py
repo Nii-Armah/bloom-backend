@@ -503,6 +503,7 @@ class TestUserLoginAPIEndpoint:
         assert user.id == UUID(user_data.get('id'))
         assert user.email == user_data.get('email')
         assert user.contact_number == ''
+        assert user_data.get('role') == 'client'
 
         tokens = response.json().get('tokens')
         access_token_payload = decode_token(tokens.get('access_token'))
@@ -523,6 +524,7 @@ class TestUserLoginAPIEndpoint:
         assert user.id == UUID(user_data.get('id'))
         assert user.email == user_data.get('email')
         assert user.bio == ''
+        assert user_data.get('role') == 'admin'
 
         tokens = response.json().get('tokens')
         access_token_payload = decode_token(tokens.get('access_token'))
