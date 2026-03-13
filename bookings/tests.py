@@ -42,9 +42,8 @@ class TestBookingModel:
         assert booking.client == booking_data.get('client')
         assert booking.professional == booking_data.get('professional')
         assert booking.service == booking_data.get('service')
-        assert booking.date == booking_data.get('date')
-        assert booking.start_time == booking_data.get('start_time')
-        assert booking.end_time == booking_data.get('end_time')
+        assert booking.start == booking_data.get('start')
+        assert booking.end == booking_data.get('end')
         assert booking.status == Booking.Status.CONFIRMED
         assert before <= booking.created_at <= datetime.datetime.now()
         assert before <= booking.updated_at <= datetime.datetime.now()
@@ -68,8 +67,8 @@ class TestBookingModel:
 
     def test_start_time_of_booking_should_precede_end_time(self, booking_data, db_session) -> None:
         data = booking_data.copy()
-        data['end_time'] = datetime.time(7, 0, 0)
-        assert data.get('end_time') < data.get('start_time')
+        data['end'] = data.get('start') - datetime.timedelta(minutes=60)
+        assert data.get('end') < data.get('start')
 
         booking = Booking(**data)
         db_session.add(booking)

@@ -25,9 +25,8 @@ class Booking(Base):
     professional: Mapped['Professional'] = relationship('Professional')
     service_id: Mapped[UUID] = mapped_column(ForeignKey('services.id'))
     service: Mapped['Service'] = relationship('Service')
-    date: Mapped[datetime.date] = mapped_column()
-    start_time: Mapped[datetime.time] = mapped_column()
-    end_time: Mapped[datetime.time] = mapped_column()
+    start: Mapped[datetime.datetime] = mapped_column()
+    end: Mapped[datetime.datetime] = mapped_column()
     status: Mapped[Status] = mapped_column(default=Status.CONFIRMED)
     created_at: Mapped[datetime.datetime] = mapped_column(default=lambda: datetime.datetime.now(datetime.UTC))
 
@@ -37,5 +36,5 @@ class Booking(Base):
     )
 
     __table_args__ = (
-        CheckConstraint('start_time < end_time', name='start_time_should_precede_end_time'),
+        CheckConstraint('start < end', name='start_time_should_precede_end_time'),
     )
