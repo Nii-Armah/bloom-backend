@@ -4,6 +4,7 @@ from services.routes import service_router
 from users.routes import auth_router, client_router, professional_router
 
 from fastapi import FastAPI, Request, status, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -11,6 +12,14 @@ from sqlalchemy.exc import IntegrityError
 
 def create_app():
     app = FastAPI(title='Bloom API', version='1.0.0')
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=['http://localhost:3000'],
+        allow_credentials=True,
+        allow_methods=['*'],
+        allow_headers=['*'],
+    )
 
     @app.exception_handler(ValidationError)
     async def pydantic_validation_handler(request: Request, exc: ValidationError):
