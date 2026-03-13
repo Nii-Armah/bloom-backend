@@ -26,3 +26,16 @@ def assert_http_error():
             assert message in data['error']['message']
 
     return _assert
+
+
+@pytest.fixture
+def assert_auth_error():
+    def _assert(response, status_code=401, message=None):
+        assert response.status_code == status_code
+        data = response.json()
+        assert data['success'] is False
+        assert data['error']['code'] == ErrorCode.AUTH_FAILED
+        if message:
+            assert message in data['error']['message']
+
+    return _assert

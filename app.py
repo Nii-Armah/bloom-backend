@@ -1,6 +1,8 @@
+from constants import ErrorCode
+from dependencies import AuthException
+from services.routes import service_router
 from users.routes import auth_router, client_router, professional_router
 
-from constants import ErrorCode
 from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
@@ -45,13 +47,32 @@ def create_app():
 
     @app.exception_handler(HTTPException)
     async def http_exception_handler(request: Request, exc: HTTPException):
+        if exc.status_code in [401, 403]:
+            code = ErrorCode.AUTH_FAILED
+        else:
+            code = ErrorCode.HTTP_ERROR
+
         return JSONResponse(
             status_code=exc.status_code,
             content={
                 'success': False,
                 'error': {
-                    'code': ErrorCode.HTTP_ERROR,
+                    'code': code,
                     'message': exc.detail,
+                    'details': {}
+                }
+            }
+        )
+
+    @app.exception_handler(AuthException)
+    async def auth_exception_handler(request: Request, exc: AuthException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                'success': False,
+                'error': {
+                    'code': ErrorCode.AUTH_FAILED,
+                    'message': exc.message,
                     'details': {}
                 }
             }
@@ -60,6 +81,7 @@ def create_app():
     app.include_router(auth_router, prefix='/api/v1/auth')
     app.include_router(client_router, prefix='/api/v1')
     app.include_router(professional_router, prefix='/api/v1')
+    app.include_router(service_router, prefix='/api/v1/services')
 
     return app
 

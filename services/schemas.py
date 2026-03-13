@@ -1,9 +1,21 @@
 from .models import Service
 
 import decimal
+from uuid import UUID
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
 from sqlalchemy import exists, func
+
+
+class ServiceOut(BaseModel):
+    id: UUID
+    name: str
+    description: str = ''
+    price: decimal.Decimal = Field(gt=0)
+    duration: int = Field(gt=0)
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ServiceSchema(BaseModel):
