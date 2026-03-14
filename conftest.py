@@ -38,4 +38,6 @@ def assert_auth_error():
         if message:
             assert message in data['error']['message']
 
+        return True
+
     return _assert
