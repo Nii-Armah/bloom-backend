@@ -10,8 +10,6 @@ from users.schemas import (
     LoginSchema,
 )
 
-from typing import Union
-
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -62,6 +60,9 @@ def create_professional(schema: ProfessionalSchema = Depends(validate_profession
     """Create a new professional."""
     try:
         professional = ProfessionalService.create(schema, db)
+        ProfessionalService.initialize_schedule(db, professional)
+        db.commit()
+
         tokens = generate_auth_tokens(professional.id)
 
         return {

@@ -1,7 +1,10 @@
+from schedules.models import Schedule
+from schedules.schemas import ScheduleSchema
+from schedules.services import ScheduleService
 from users.models import Client, Professional
 from users.schemas import ClientSchema, ProfessionalSchema
-from schedules.models import Schedule
 
+import datetime
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -52,3 +55,16 @@ class ProfessionalService:
             Schedule.professional == professional,
             Schedule.day_of_week == day
         ).first()
+
+    @staticmethod
+    def initialize_schedule(db: Session, professional: Professional) -> None:
+        weekends = [Schedule.DayOfWeek.SATURDAY, Schedule.DayOfWeek.SUNDAY]
+
+        for day_of_week in Schedule.DayOfWeek:
+            schedule_data = ScheduleSchema(
+                day_of_week=day_of_week,
+                start_time=datetime.time(9, 0, 0),
+                end_time=datetime.time(17, 0, 0),
+                is_available=False if day_of_week in weekends else True
+            )
+            ScheduleService.create_schedule(professional, schedule_data, db)

@@ -452,6 +452,18 @@ class TestProfessionalManagementEndpoints:
         refresh_token_payload = decode_token(tokens.get('refresh_token'))
         assert refresh_token_payload.get('sub') == user_data.get('id')
 
+        # A default schedule is created for professionals
+        schedule = db_session.query(Schedule).filter(Schedule.professional == professional).all()
+        assert len(schedule) == 7
+
+        weekend = [Schedule.DayOfWeek.SATURDAY, Schedule.DayOfWeek.SUNDAY]
+        weekend_schedule = [s for s in schedule if s.day_of_week in weekend]
+        weekday_schedule = [s for s in schedule if s.day_of_week not in weekend]
+        assert  len(weekend_schedule) == 2
+        assert len(weekday_schedule) == 5
+        assert all([s.is_available for s in weekday_schedule])
+        assert not any([s.is_available for s in weekend_schedule])
+
     def test_professional_required_fields(self, client, professional_data, assert_validation_error) -> None:
         professional_data.update({'password2': professional_data.get('password')})
 

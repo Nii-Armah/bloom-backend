@@ -29,3 +29,23 @@ class ScheduleService:
             setattr(db_schedule, key, value)
 
         return db_schedule
+
+    @staticmethod
+    def create_schedule(
+        professional: Professional,
+        schedule_data: ScheduleSchema,
+        db_session: Session | None = None
+    ) -> Schedule:
+
+        schedule = Schedule(
+            professional=professional,
+            day_of_week=schedule_data.day_of_week,
+            start_time=schedule_data.start_time,
+            end_time=schedule_data.end_time,
+            is_available=schedule_data.is_available,
+        )
+
+        if db_session:
+            db_session.add(schedule)
+
+        return schedule
