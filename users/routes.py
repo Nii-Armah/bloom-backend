@@ -75,6 +75,7 @@ def create_professional(schema: ProfessionalSchema = Depends(validate_profession
 
 @professional_router.get('/', response_model=Page[ProfessionalOut], tags=['User Management'])
 def get_professionals(_client: Client = Depends(get_current_client), db: Session = Depends(get_session)):
+    """Retrieves all professionals."""
     professionals = ProfessionalService.get_all(db)
     return paginate(professionals)
 
