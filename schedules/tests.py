@@ -128,7 +128,15 @@ class TestScheduleManagementEndpoints:
         header = {'Authorization': f'Bearer {tokens.get('access_token')}'}
         response = client.get('/api/v1/schedules/', headers=header)
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 7
+        schedules = response.json()
+        assert len(schedules) == 7
+
+        schedule_data =schedules[0]
+        schedule = db_session.query(Schedule).filter(Schedule.professional == professional).first()
+        assert schedule.start_time == schedule.start_time
+        assert schedule.end_time == schedule.end_time
+        assert schedule_data.get('is_available')
+        assert schedule_data.get('day_of_week') == schedule.day_of_week.value
 
     def test_schedule_listing_endpoint_is_authenticated(self, client, assert_auth_error) -> None:
         response = client.get('/api/v1/schedules/')
