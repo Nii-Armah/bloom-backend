@@ -2,7 +2,7 @@ from .services import ClientService, ProfessionalService
 from .utils import generate_auth_tokens, verify_password
 from database import get_session
 from dependencies import get_current_client
-from users.models import Client
+from users.models import Client, Professional
 from users.schemas import (
     ClientAuthResponse,
     ClientSchema,
@@ -10,12 +10,16 @@ from users.schemas import (
     ProfessionalOut,
     ProfessionalSchema,
     LoginSchema,
+    ProfessionalDetailsSchema,
 )
+
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from fastapi_pagination import Page, paginate
+from sqlalchemy.orm import selectinload
 
 
 auth_router = APIRouter()
@@ -78,6 +82,23 @@ def get_professionals(_client: Client = Depends(get_current_client), db: Session
     """Retrieves all professionals."""
     professionals = ProfessionalService.get_all(db)
     return paginate(professionals)
+
+
+@professional_router.get(
+    '/{professional_id}/',
+    response_model=ProfessionalDetailsSchema,
+    status_code=status.HTTP_200_OK,
+    tags=['User Management'],
+)
+def get_professional_details(professional_id: UUID, db: Session = Depends(get_session)):
+    professional = db.query(Professional).options(
+        selectinload(Professional.services)  # Eager load services
+    ).filter(Professional.id == professional_id).first()
+
+    if not professional:
+        raise HTTPException(status_code=404, detail='Professional not found')
+
+    return professional
 
 
 @auth_router.post('/login/', tags=['User Management'], status_code=status.HTTP_200_OK)

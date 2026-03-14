@@ -1,6 +1,8 @@
 from .models import Client, Professional
 from pydantic import BaseModel, ConfigDict, EmailStr, ValidationInfo, field_validator, model_validator
 
+import datetime
+import decimal
 from typing import Self
 from uuid import UUID
 
@@ -122,3 +124,27 @@ class ProfessionalSchema(BaseModel):
 class LoginSchema(BaseModel):
     email: EmailStr
     password: str
+
+
+class ServiceInProfessionalSchema(BaseModel):
+    id: UUID
+    name: str
+    description: str
+    price: decimal.Decimal
+    duration: int
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProfessionalDetailsSchema(BaseModel):
+    id: UUID
+    full_name: str
+    email: str
+    bio: str
+    specialty: str
+    is_verified: bool
+    services: list[ServiceInProfessionalSchema]
+    created_at: datetime.datetime
+
+    model_config = ConfigDict(from_attributes=True)

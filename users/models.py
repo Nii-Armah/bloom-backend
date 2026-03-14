@@ -6,7 +6,7 @@ import enum
 from uuid import UUID, uuid4
 
 from sqlalchemy import TEXT
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class Client(Base):
@@ -58,4 +58,9 @@ class Professional(Base):
     updated_at: Mapped[datetime.datetime] = mapped_column(
         default=lambda: datetime.datetime.now(datetime.UTC),
         onupdate=lambda: datetime.datetime.now(datetime.UTC),
+    )
+
+    services: Mapped[list['Service']] = relationship(
+        'Service',
+        back_populates='professional'
     )
