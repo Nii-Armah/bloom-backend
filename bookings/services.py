@@ -1,7 +1,7 @@
 from .models import Booking
 from bookings.schemas import BookingSchema
 from schedules.models import Schedule
-from users.models import Professional
+from users.models import Client, Professional
 
 import datetime
 
@@ -31,8 +31,9 @@ class BookingService:
         ).count() > 0
 
     @staticmethod
-    def create(db: Session, schema: BookingSchema) -> Booking:
+    def create(db: Session, schema: BookingSchema, client: Client) -> Booking:
         booking = Booking(**schema.model_dump())
+        booking.client_id = client.id
         db.add(booking)
         db.commit()
         db.refresh(booking)

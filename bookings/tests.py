@@ -1,3 +1,4 @@
+from services.models import Service
 from users.models import Client, Professional
 from users.utils import generate_auth_tokens
 from .factories import BookingFactory
@@ -308,3 +309,43 @@ class TestBookingManagementEndpoints:
         assert booking_data.get('start')
         assert booking_data.get('end')
         assert booking_data.get('status') == booking.status.value
+
+    def test_booking_creation_endpoint_is_authenticated(self, client, assert_auth_error) -> None:
+        response = client.post('/api/v1/bookings/')
+        assert_auth_error(response, status.HTTP_401_UNAUTHORIZED, 'Not authenticated')
+
+
+    def test_book_an_appointment(self, client, db_session) -> None:
+        professional_data = factory.build(dict, FACTORY_CLASS=ProfessionalFactory)
+        professional = Professional(**professional_data)
+        db_session.add(professional)
+
+        schedule_data = factory.build(dict, FACTORY_CLASS=ScheduleFactory)
+        schedule_data.update({'professional': professional, 'day_of_week': Schedule.DayOfWeek.SATURDAY})
+        schedule = Schedule(**schedule_data)
+        db_session.add(schedule)
+
+        client_data = factory.build(dict, FACTORY_CLASS=ClientFactory)
+        client_instance = Client(**client_data)
+        db_session.add(client_instance)
+
+        service_data = factory.build(dict, FACTORY_CLASS=ServiceFactory)
+        service_data.update({'professional': professional})
+        service = Service(**service_data)
+        db_session.add(service)
+        db_session.flush()
+
+        booking_data = {
+            'service_id': str(service.id),
+            'professional_id': str(professional.id),
+            'start': str(datetime.datetime.now())
+        }
+
+        tokens = generate_auth_tokens(client_instance.id)
+        headers = {'Authorization': f'Bearer {tokens.get("access_token")}'}
+        response = client.post('/api/v1/bookings/', json=booking_data, headers=headers)
+        assert response.status_code == status.HTTP_201_CREATED
+
+        assert db_session.query(Booking).filter(Booking.client == client_instance).count() == 1
+        assert db_session.query(Booking).filter(Booking.professional == professional).count() == 1
+
