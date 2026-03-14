@@ -1,30 +1,49 @@
 from .factories import ScheduleFactory
 from .models import Schedule
-from database import init_db
+from app import create_app
+from database import Base, get_session, init_db
+from users.factories import ProfessionalFactory
+from users.utils import generate_auth_tokens
 
 import datetime
 from uuid import UUID
 
 import factory
+from fastapi.testclient import TestClient
 import pytest
 from sqlalchemy.exc import IntegrityError
+from starlette import status
 
 
 @pytest.fixture(scope='function')
-def db_session():
+def app():
+    return create_app()
+
+
+@pytest.fixture(scope='function')
+def db_session(app):
     engine, session_factory = init_db(test=True)
-    session = session_factory()
+    Base.metadata.create_all(bind=engine)
 
-    # Override FastAPI dependency
-    # def override_get_session():
-    #     return session
+    connection = engine.connect()
+    transaction = connection.begin()
+    session = session_factory(bind=connection)
 
-    # app.dependency_overrides[get_session] = override_get_session
+    def override_get_session():
+        yield session
 
+    app.dependency_overrides[get_session] = override_get_session
     yield session
 
     session.close()
+    transaction.rollback()
+    connection.close()
     engine.dispose()
+
+
+@pytest.fixture(scope='function')
+def client(app, db_session):
+    return TestClient(app)
 
 
 @pytest.fixture(scope='function')
@@ -91,3 +110,27 @@ class TestScheduleModel:
 
         exception_message = str(exception.value).split('\n')[0]
         assert exception_message.endswith('UNIQUE constraint failed: schedules.professional_id, schedules.day_of_week')
+
+
+class TestScheduleManagementEndpoints:
+    def test_retrieve_all_schedules_of_a_professional(self, client, db_session) -> None:
+        ProfessionalFactory._meta.sqlalchemy_session = db_session
+        ScheduleFactory._meta.sqlalchemy_session = db_session
+        professional = ProfessionalFactory.create()
+        for day in Schedule.DayOfWeek:
+            ScheduleFactory.create(professional=professional, day_of_week=day)
+
+        db_session.flush()
+
+        assert db_session.query(Schedule).filter(Schedule.professional == professional).count() == 7
+
+        tokens = generate_auth_tokens(professional.id)
+        header = {'Authorization': f'Bearer {tokens.get('access_token')}'}
+        response = client.get('/api/v1/schedules/', headers=header)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 7
+
+    def test_schedule_listing_endpoint_is_authenticated(self, client, assert_auth_error) -> None:
+        response = client.get('/api/v1/schedules/')
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+        assert_auth_error(response, status.HTTP_401_UNAUTHORIZED, 'Not authenticated')

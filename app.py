@@ -1,5 +1,6 @@
 from constants import ErrorCode
 from dependencies import AuthException
+from schedules.routes import schedules_router
 from services.routes import service_router
 from users.routes import auth_router, client_router, professional_router
 
@@ -103,6 +104,7 @@ def create_app():
     app.include_router(client_router, prefix='/api/v1')
     app.include_router(professional_router, prefix='/api/v1')
     app.include_router(service_router, prefix='/api/v1/services')
+    app.include_router(schedules_router, prefix='/api/v1/schedules')
 
     return app
 
