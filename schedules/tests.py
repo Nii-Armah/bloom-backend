@@ -1,6 +1,7 @@
 from .factories import ScheduleFactory
 from .models import Schedule
 from app import create_app
+from schedules.schemas import ScheduleSchema
 from database import Base, get_session, init_db
 from users.factories import ProfessionalFactory
 from users.utils import generate_auth_tokens
@@ -10,6 +11,7 @@ from uuid import UUID
 
 import factory
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 import pytest
 from sqlalchemy.exc import IntegrityError
 from starlette import status
@@ -110,6 +112,58 @@ class TestScheduleModel:
 
         exception_message = str(exception.value).split('\n')[0]
         assert exception_message.endswith('UNIQUE constraint failed: schedules.professional_id, schedules.day_of_week')
+
+
+class TestScheduleSchema:
+    def test_valid_schedule_data(self, schedule_data) -> None:
+        validated_data = ScheduleSchema(**schedule_data)
+
+        assert validated_data.day_of_week == schedule_data.get('day_of_week')
+        assert validated_data.start_time == schedule_data.get('start_time')
+        assert validated_data.end_time == schedule_data.get('end_time')
+        assert validated_data.is_available
+
+    def test_required_schedule_data(self, schedule_data ,assert_validation_error) -> None:
+        schedule_data.pop('professional')
+
+        for field in schedule_data:
+            data = schedule_data.copy()
+            data.pop(field)
+
+            with pytest.raises(ValidationError) as exception:
+                ScheduleSchema(**data)
+
+            error = exception.value.errors()[0]
+            assert error.get('type') == 'missing'
+            assert error.get('loc')[0] == field
+            assert error.get('msg') == 'Field required'
+
+    def test_a_given_professional_cannot_have_duplicate_schedules_for_a_given_day(self, db_session, schedule_data) -> None:
+        ProfessionalFactory._meta.sqlalchemy_session = db_session
+        ScheduleFactory._meta.sqlalchemy_session = db_session
+
+        professional = ProfessionalFactory.create()
+        ScheduleFactory.create(professional=professional, day_of_week=Schedule.DayOfWeek.MONDAY)
+        db_session.flush()
+
+        assert db_session.query(Schedule).filter(
+            Schedule.professional == professional,
+            Schedule.day_of_week == Schedule.DayOfWeek.MONDAY
+        ).count() == 1
+
+        schedule_data.update({
+            'professional': professional,
+            'day_of_week': Schedule.DayOfWeek.MONDAY
+        })
+        with pytest.raises(ValidationError) as exception:
+            ScheduleSchema.model_validate(
+                schedule_data,
+                context={'db_session': db_session, 'professional': professional}
+            )
+
+        error = exception.value.errors()[0]
+        assert error.get('type') == 'value_error'
+        assert error.get('msg').endswith(' Professional already has a schedule for this day')
 
 
 class TestScheduleManagementEndpoints:
