@@ -12,7 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 class Schedule(Base):
     __tablename__ = 'schedules'
 
-    class DayOfWeek(enum.Enum):
+    class DayOfWeek(str, enum.Enum):
         MONDAY = 'monday'
         TUESDAY = 'tuesday'
         WEDNESDAY = 'wednesday'

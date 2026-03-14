@@ -179,7 +179,7 @@ class TestScheduleManagementEndpoints:
         assert db_session.query(Schedule).filter(Schedule.professional == professional).count() == 7
 
         tokens = generate_auth_tokens(professional.id)
-        header = {'Authorization': f'Bearer {tokens.get('access_token')}'}
+        header = {'Authorization': f'Bearer {tokens.get("access_token")}'}
         response = client.get('/api/v1/schedules/', headers=header)
         assert response.status_code == status.HTTP_200_OK
         schedules = response.json()
@@ -196,3 +196,39 @@ class TestScheduleManagementEndpoints:
         response = client.get('/api/v1/schedules/')
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
         assert_auth_error(response, status.HTTP_401_UNAUTHORIZED, 'Not authenticated')
+
+    def test_schedule_update_endpoint_is_authenticated(self, client) -> None:
+        response = client.put('/api/v1/schedules/')
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    def test_update_schedule_of_a_professional(self, client, db_session, schedule_data) -> None:
+        ProfessionalFactory._meta.sqlalchemy_session = db_session
+        ScheduleFactory._meta.sqlalchemy_session = db_session
+
+        professional = ProfessionalFactory.create()
+        schedule_data.update({'professional': professional, 'day_of_week': Schedule.DayOfWeek.MONDAY})
+        schedule = ScheduleFactory.create(**schedule_data)
+        db_session.flush()
+
+        assert db_session.query(Schedule).filter(Schedule.professional == professional).count() == 1
+
+        schedule_data.pop('professional')
+        schedule_data.update({
+            'start_time': str(datetime.time(12, 0, 0)),
+            'end_time': str(datetime.time(14, 0, 0)),
+            'is_available': False,
+        })
+
+        assert str(schedule.start_time) != schedule_data.get('start_time')
+        assert str(schedule.end_time) != schedule_data.get('end_time')
+        assert schedule.is_available
+
+        tokens = generate_auth_tokens(professional.id)
+        header = {'Authorization': f'Bearer {tokens.get("access_token")}'}
+        response = client.put('/api/v1/schedules/', json=[schedule_data], headers=header)
+        assert response.status_code == status.HTTP_200_OK
+
+        db_session.refresh(schedule)
+        assert str(schedule.start_time) == schedule_data.get('start_time')
+        assert str(schedule.end_time) == schedule_data.get('end_time')
+        assert not schedule.is_available
