@@ -58,20 +58,16 @@ async def create_client(schema: ClientSchema = Depends(validate_client),  db: Se
 )
 def create_professional(schema: ProfessionalSchema = Depends(validate_professional), db: Session = Depends(get_session)):
     """Create a new professional."""
-    try:
-        professional = ProfessionalService.create(schema, db)
-        ProfessionalService.initialize_schedule(db, professional)
-        db.commit()
+    professional = ProfessionalService.create(schema, db)
+    ProfessionalService.initialize_schedule(db, professional)
+    db.commit()
 
-        tokens = generate_auth_tokens(professional.id)
+    tokens = generate_auth_tokens(professional.id)
 
-        return {
-            'user': professional,
-            'tokens': tokens,
-        }
-
-    except IntegrityError:
-        raise HTTPException(status_code=409, detail='Email already exists')
+    return {
+        'user': professional,
+        'tokens': tokens,
+    }
 
 
 @auth_router.post('/login/', tags=['User Management'], status_code=status.HTTP_200_OK)
