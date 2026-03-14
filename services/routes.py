@@ -1,8 +1,11 @@
 from .crud import ServiceCore
-from .schemas import ServiceOut, ServiceSchema
+from .schemas import ServiceOut, ServiceSchema, ServiceDetailSchema
 from database import get_session
 from dependencies import get_current_professional
+from services.models import Service
 from users.models import Professional
+
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.exc import IntegrityError
@@ -53,3 +56,18 @@ async def get_services(
 ):
     """List all services of a given professional."""
     return ServiceCore.get_services_of_professional(db, professional)
+
+
+@service_router.get(
+    '/{service_id}/',
+    response_model=ServiceDetailSchema,
+    status_code=status.HTTP_200_OK,
+    tags=['Service Management'],
+)
+def get_service_details(service_id: UUID, db: Session = Depends(get_session)):
+    service = db.query(Service).filter(Service.id == service_id).first()
+
+    if not service:
+        raise HTTPException(status_code=404, detail='Service not found')
+
+    return service

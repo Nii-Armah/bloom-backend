@@ -1,9 +1,10 @@
 from .models import Service
 
+import datetime
 import decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, computed_field
 from sqlalchemy import exists, func
 
 
@@ -39,3 +40,31 @@ class ServiceSchema(BaseModel):
             raise ValueError('Professional has a service by the given name')
 
         return name
+
+
+class ProfessionalInServiceSchema(BaseModel):
+    id: UUID
+    full_name: str
+    email: str
+    specialty: str
+    bio: str
+    is_verified: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ServiceDetailSchema(BaseModel):
+    id: UUID
+    name: str
+    description: str
+    price: decimal.Decimal
+    duration: int
+    is_active: bool
+    professional: ProfessionalInServiceSchema
+    created_at: datetime.datetime
+
+    @computed_field
+    @property
+    def professional_name(self) -> str:
+        return self.professional.full_name
+
+    model_config = ConfigDict(from_attributes=True)
