@@ -1,13 +1,13 @@
 from schedules.models import Schedule
 from services.crud import ServiceCore
+from services.schemas import ServiceOut
 from users.services import ProfessionalService
 
 import datetime
 from typing import Optional, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ValidationInfo, model_validator
-
+from pydantic import BaseModel, ConfigDict, ValidationInfo, model_validator
 
 WEEKDAYS = {
     1: Schedule.DayOfWeek.MONDAY,
@@ -18,6 +18,16 @@ WEEKDAYS = {
     6: Schedule.DayOfWeek.SATURDAY,
     7: Schedule.DayOfWeek.SUNDAY,
 }
+
+
+class BookingOutSchema(BaseModel):
+    id: UUID
+    service: ServiceOut
+    start: datetime.datetime
+    end: datetime.datetime
+    status: str
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BookingSchema(BaseModel):

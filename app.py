@@ -1,3 +1,4 @@
+from bookings.routes import bookings_router
 from constants import ErrorCode
 from dependencies import AuthException
 from schedules.routes import schedules_router
@@ -6,6 +7,7 @@ from users.routes import auth_router, client_router, professional_router
 
 from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_pagination import add_pagination
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -140,10 +142,13 @@ def create_app():
         )
 
     app.include_router(auth_router, prefix='/api/v1/auth')
+    app.include_router(bookings_router, prefix='/api/v1/bookings')
     app.include_router(client_router, prefix='/api/v1')
     app.include_router(professional_router, prefix='/api/v1')
     app.include_router(service_router, prefix='/api/v1/services')
     app.include_router(schedules_router, prefix='/api/v1/schedules')
+
+    add_pagination(app)
 
     return app
 

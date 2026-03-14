@@ -1,3 +1,4 @@
+from bookings.models import Booking
 from schedules.models import Schedule
 from schedules.schemas import ScheduleSchema
 from schedules.services import ScheduleService
@@ -28,6 +29,10 @@ class ClientService:
     @staticmethod
     def get_by_email(db: Session, email: str) -> Client | None:
         return db.query(Client).filter(Client.email == email).first()
+
+    @staticmethod
+    def get_bookings(db: Session, client: Client) -> list[type[Booking]]:
+        return db.query(Booking).filter(Booking.client == client).all()
 
 
 class ProfessionalService:
@@ -68,3 +73,7 @@ class ProfessionalService:
                 is_available=False if day_of_week in weekends else True
             )
             ScheduleService.create_schedule(professional, schedule_data, db)
+
+    @staticmethod
+    def get_bookings(db: Session, professional: Professional) -> list[type[Booking]]:
+        return db.query(Booking).filter(Booking.professional == professional).all()
