@@ -2,7 +2,7 @@ from .factories import ClientFactory, ProfessionalFactory
 from .models import Client, Professional
 from .schemas import ClientSchema, ProfessionalSchema
 from .services import ClientService, ProfessionalService
-from .utils import decode_token, verify_password
+from .utils import decode_token, generate_auth_tokens, verify_password
 from app import create_app
 from database import Base, get_session, init_db
 from schedules.models import Schedule
@@ -474,7 +474,6 @@ class TestProfessionalManagementEndpoints:
             response = client.post('/api/v1/professionals/', json=data)
             assert_validation_error(response, field_name=field)
 
-
     def test_professional_email_should_be_unique(self, client,  db_session, professional_data, assert_validation_error) -> None:
         professional = Professional(**professional_data)
         db_session.add(professional)
@@ -500,6 +499,37 @@ class TestProfessionalManagementEndpoints:
 
         response = client.post('/api/v1/professionals/', json=professional_data)
         assert_validation_error(response)
+
+    def test_professional_listing_endpoint_is_authenticated(self, client, assert_auth_error) -> None:
+        response = client.get('/api/v1/professionals/')
+        assert assert_auth_error(response, status_code=status.HTTP_401_UNAUTHORIZED, message='Not authenticated')
+
+    def test_retrieve_all_professionals(self, client, professional_data, assert_auth_error, client_data, db_session) -> None:
+        user = Client(**client_data)
+        db_session.add(user)
+        db_session.flush()
+
+        tokens = generate_auth_tokens(user.id)
+        headers = {'Authorization': f'Bearer {tokens.get("access_token")}'}
+
+        # No professionals
+        assert db_session.query(Professional).count() == 0
+
+        response = client.get('/api/v1/professionals/', headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json().get('items')) == 0
+
+        # Create a professional
+        professional = Professional(**professional_data)
+        db_session.add(professional)
+        db_session.flush()
+
+        assert db_session.query(Professional).count() == 1
+
+        response = client.get('/api/v1/professionals/', headers=headers)
+        assert response.status_code == status.HTTP_200_OK
+        items = response.json().get('items')
+        assert len(items) == 1
 
 
 class TestUserLoginAPIEndpoint:

@@ -1,11 +1,13 @@
 from .services import ClientService, ProfessionalService
 from .utils import generate_auth_tokens, verify_password
 from database import get_session
+from dependencies import get_current_client
 from users.models import Client
 from users.schemas import (
     ClientAuthResponse,
     ClientSchema,
     ProfessionalAuthResponse,
+    ProfessionalOut,
     ProfessionalSchema,
     LoginSchema,
 )
@@ -13,6 +15,7 @@ from users.schemas import (
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from fastapi_pagination import Page, paginate
 
 
 auth_router = APIRouter()
@@ -68,6 +71,12 @@ def create_professional(schema: ProfessionalSchema = Depends(validate_profession
         'user': professional,
         'tokens': tokens,
     }
+
+
+@professional_router.get('/', response_model=Page[ProfessionalOut], tags=['User Management'])
+def get_professionals(_client: Client = Depends(get_current_client), db: Session = Depends(get_session)):
+    professionals = ProfessionalService.get_all(db)
+    return paginate(professionals)
 
 
 @auth_router.post('/login/', tags=['User Management'], status_code=status.HTTP_200_OK)

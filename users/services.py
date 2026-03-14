@@ -37,6 +37,10 @@ class ClientService:
 
 class ProfessionalService:
     @staticmethod
+    def get_all(db: Session) -> list[type[Professional]]:
+        return db.query(Professional).all()
+
+    @staticmethod
     def create(schema: ProfessionalSchema, db: Session) -> Professional:
         data = schema.model_dump()
         professional = Professional(**data)
