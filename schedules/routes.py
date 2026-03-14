@@ -38,6 +38,8 @@ def update_schedule(
         professional: Professional = Depends(get_current_professional),
         db: Session = Depends(get_session)
 ):
+    """Updates the schedule of a given professional."""
+
     for schedule_data in schedules:
         existing_schedule = ScheduleService.get_schedule_by_professional_and_day_of_week(db, professional, schedule_data.day_of_week)
         if existing_schedule:
