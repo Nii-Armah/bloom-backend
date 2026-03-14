@@ -42,16 +42,13 @@ def booking_data():
 
 @pytest.fixture(scope='function')
 def booking_schema_data(db_session):
-    ClientFactory._meta.sqlalchemy_session = db_session
     ProfessionalFactory._meta.sqlalchemy_session = db_session
     ServiceFactory._meta.sqlalchemy_session = db_session
 
-    client = ClientFactory.create()
     service = ServiceFactory.create(duration=60)
     db_session.flush()
 
     return {
-        'client_id': client.id,
         'service_id': service.id,
         'start': datetime.datetime(2026, 3, 13, 10, 0, 0),
     }
@@ -142,7 +139,6 @@ class TestBookingSchema:
         self.create_schedule_for_professional(db_session, booking_schema_data, weekday)
         validated_booking = BookingSchema.model_validate(booking_schema_data, context={'db_session': db_session})
 
-        assert validated_booking.client_id == booking_schema_data.get('client_id')
         assert validated_booking.service_id == booking_schema_data.get('service_id')
         service = ServiceCore.get_by_id(db_session, validated_booking.service_id)
         assert validated_booking.professional_id == service.professional.id
@@ -191,26 +187,30 @@ class TestBookingSchema:
         assert error['type'] == 'value_error'
         assert error['msg'].endswith('Booking time outside professional schedule')
 
-    # def test_booking_slot_should_have_no_overlap(self, booking_schema_data, db_session, weekday) -> None:
-    #     self.create_schedule_for_professional(db_session, booking_schema_data, weekday)
-    #
-    #     service = ServiceCore.get_by_id(db_session, booking_schema_data.get('service_id'))
-    #
-    #     BookingFactory._meta.sqlalchemy_session = db_session
-    #     booking_data = booking_schema_data.copy()
-    #     new_start = booking_data.get('start') + datetime.timedelta(minutes=20)
-    #     booking_data.update({
-    #         'start': booking_data.get('start') + datetime.timedelta(minutes=20),
-    #         'end': new_start + datetime.timedelta(minutes=service.duration),
-    #     })
-    #     existing_booking = BookingFactory.create(**booking_data)
-    #     db_session.commit()
-    #
-    #     assert db_session.query(Booking).filter(Booking.id == existing_booking.id).first() is not None
-    #
-    #     with pytest.raises(ValidationError) as exception:
-    #         BookingSchema.model_validate(booking_schema_data, context={'db_session': db_session})
-    #
-    #     error = exception.value.errors()[0]
-    #     assert error['type'] == 'value_error'
-    #     assert error['msg'].endswith('Time slot already booked')
+    def test_booking_slot_should_have_no_overlap(self, booking_schema_data, db_session, weekday) -> None:
+        self.create_schedule_for_professional(db_session, booking_schema_data, weekday)
+
+        service = ServiceCore.get_by_id(db_session, booking_schema_data.get('service_id'))
+        professional = service.professional
+        BookingFactory._meta.sqlalchemy_session = db_session
+        ClientFactory._meta.sqlalchemy_session = db_session
+        client = ClientFactory.create()
+
+        existing_booking = Booking(
+            client_id=client.id,
+            service_id=booking_schema_data.get('service_id'),
+            start=booking_schema_data.get('start') + datetime.timedelta(minutes=20),
+            end=booking_schema_data.get('start') + datetime.timedelta(minutes=60),
+            professional_id=professional.id
+        )
+        db_session.add(existing_booking)
+        db_session.flush()
+
+        assert db_session.query(Booking).filter(Booking.professional== professional).count() == 1
+
+        with pytest.raises(ValidationError) as exception:
+            BookingSchema.model_validate(booking_schema_data, context={'db_session': db_session})
+
+        error = exception.value.errors()[0]
+        assert error['type'] == 'value_error'
+        assert error['msg'].endswith('Time slot already booked')
