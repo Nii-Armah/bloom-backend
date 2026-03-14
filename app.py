@@ -78,22 +78,31 @@ def create_app():
             if not details:
                 details['resource'] = 'Duplicate entry'
 
+        elif 'NOT NULL constraint failed' in error_msg:
+            code = ErrorCode.VALIDATION_ERROR
+            message = 'Missing required field'
+            constraint_part = error_msg.split(': ')[1] if ': ' in error_msg else ''
+            if '.' in constraint_part:
+                field = constraint_part.split('.')[-1]
+                details[field] = f'{field.replace("_", " ").title()} is required'
+            else:
+                details['resource'] = 'Required field missing'
+
         elif 'FOREIGN KEY constraint failed' in error_msg:
             code = ErrorCode.CONFLICT
             message = 'Invalid reference'
             details['resource'] = 'Referenced resource does not exist'
 
         elif 'CHECK constraint failed' in error_msg:
-            # Extract constraint name if available
             constraint_name = ''
             if 'check_' in error_msg.lower():
                 constraint_name = error_msg.split('check_')[1].split()[0]
 
             message = 'Invalid data'
-            details['resource'] = f'Constraint violation: {constraint_name}' if constraint_name else 'Data validation failed'
+            details[
+                'resource'] = f'Constraint violation: {constraint_name}' if constraint_name else 'Data validation failed'
 
         else:
-            # Generic constraint error
             details['resource'] = 'Database constraint violated'
 
         return JSONResponse(
